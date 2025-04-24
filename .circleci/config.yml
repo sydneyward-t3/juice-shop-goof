@@ -1,0 +1,88 @@
+# This config was automatically generated from your source code
+# Stacks detected: cicd:github-actions:.github/workflows,deps:node:.,test:jest:
+version: 2.1
+orbs:
+  node: circleci/node@5
+jobs:
+  snyk-os:
+    executor: node/default
+    steps:
+      - checkout
+      - node/install-packages:
+          override-ci-command: npm install
+      - run:
+          command: |
+            wget -O snyk https://static.snyk.io/cli/latest/snyk-linux
+            chmod +x ./snyk
+            
+      - run:
+          command: |
+            ./snyk auth $SNYK_TOKEN --auth-type=token
+            ./snyk test --org=c26f7459-bcd7-472c-be67-fb38dd91af5a
+            ./snyk monitor --org=c26f7459-bcd7-472c-be67-fb38dd91af5a
+
+  snyk-code:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+      - run:
+          command: |
+            wget -O snyk https://static.snyk.io/cli/latest/snyk-linux
+            chmod +x ./snyk
+            
+      - run:
+          command: |
+            ./snyk auth $SNYK_TOKEN --auth-type=token
+            ./snyk code test --org=c26f7459-bcd7-472c-be67-fb38dd91af5a
+
+  snyk-iac:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+      - run:
+          command: |
+            wget -O snyk https://static.snyk.io/cli/latest/snyk-linux
+            chmod +x ./snyk
+            
+      - run:
+          command: |
+            ./snyk auth $SNYK_TOKEN --auth-type=token
+            ./snyk iac test --org=c26f7459-bcd7-472c-be67-fb38dd91af5a --report
+
+  snyk-container:
+    docker:
+      - image: cimg/base:2022.09
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          command: |
+            docker build -t test:latest .
+      - run:
+          command: |
+            wget -O snyk https://static.snyk.io/cli/latest/snyk-linux
+            chmod +x ./snyk
+            
+      - run:
+          command: |
+            ./snyk auth $SNYK_TOKEN --auth-type=token
+            ./snyk container test test:latest --org=c26f7459-bcd7-472c-be67-fb38dd91af5a --file=Dockerfile
+            ./snyk container monitor test:latest --org=c26f7459-bcd7-472c-be67-fb38dd91af5a --file=Dockerfile
+workflows:
+  build-and-test:
+    jobs:
+      - snyk-os:
+          context:
+            - TEMP
+      - snyk-code:
+          context:
+            - TEMP
+      - snyk-iac:
+          context:
+            - TEMP
+      - snyk-container:
+          context:
+            - TEMP
